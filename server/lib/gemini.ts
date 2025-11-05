@@ -15,7 +15,7 @@ export interface PhysicsSolution {
 export async function solvePhysicsProblem(parts: any[]): Promise<PhysicsSolution> {
   const systemPrompt = `
 Sen TYT/AYT düzeyinde fizik öğretmenisin. Soruyu çözmeden önce Google Arama aracını kullanarak güvenilir kaynaklardan doğrula.
-Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"...","konuOzet"}.
+Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"...", "konuOzet":"..."}.
 
 - konu: Sorunun ana konusu (örn: "Kinematik - Hız ve İvme")
 - istenilen: Soruda ne isteniyor (kısa açıklama)
