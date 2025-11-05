@@ -9,18 +9,20 @@ export interface PhysicsSolution {
   verilenler: string;
   cozum: string;
   sonuc: string;
+  konuOzet: string;
 }
 
 export async function solvePhysicsProblem(parts: any[]): Promise<PhysicsSolution> {
   const systemPrompt = `
 Sen TYT/AYT düzeyinde fizik öğretmenisin. Soruyu çözmeden önce Google Arama aracını kullanarak güvenilir kaynaklardan doğrula.
-Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"..."}.
+Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"...","konuOzet"}.
 
 - konu: Sorunun ana konusu (örn: "Kinematik - Hız ve İvme")
 - istenilen: Soruda ne isteniyor (kısa açıklama)
 - verilenler: Soruda verilen bilgiler (liste halinde)
-- cozum: Adım adım çözüm (formüller ve açıklamalarla)
+- cozum: Adım adım çözüm ve  olabildiğince %100 derecesinde doğru yapılarak (formüller ve açıklamalarla)
 - sonuc: Nihai sonuç (sayısal değer ve birim)
+- konuOzet:Sorunun ana konusuna ait konu özeti
 
 Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
   `.trim();
