@@ -36,7 +36,7 @@ This is a Turkish physics problem-solving platform designed for TYT (Transition 
 
 ### Default Admin Account
 - **Username**: `admin`
-- **Password**: `admin123`
+- **Password**: `Ferhat4755__`
 - ⚠️ **Security Note**: Change `ADMIN_PASSWORD` environment variable in production!
 
 ## User Preferences
@@ -153,7 +153,7 @@ users {
 ```
 GEMINI_API_KEY - Google Gemini AI API key (REQUIRED)
 SESSION_SECRET - Secret for JWT signing (auto-generated if not set)
-ADMIN_PASSWORD - Default admin account password (default: admin123)
+ADMIN_PASSWORD - Default admin account password (default: Ferhat4755__)
 PORT - Server port (default: 5000)
 ```
 
@@ -189,7 +189,7 @@ PORT - Server port (default: 5000)
 5. Copy solution or ask new questions
 
 ### For Administrators
-1. Login with default credentials (admin/admin123)
+1. Login with default credentials (admin/Ferhat4755__)
 2. Navigate to Admin panel (automatic redirect for admin role)
 3. View all registered users
 4. Block/unblock users who violate terms
