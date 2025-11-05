@@ -22,7 +22,7 @@ Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "
 - verilenler: Soruda verilen bilgiler (liste halinde)
 - cozum: Adım adım çözüm ve  olabildiğince %100 derecesinde doğru yapılarak (formüller ve açıklamalarla)
 - sonuc: Nihai sonuç (sayısal değer ve birim)
-- konuOzet:Sorunun ana konusuna ait konu özeti
+- konuOzet:Sorunun ana konusuna ait konu özeti(öğrencinin anlayacağı düzeyde)
 
 Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
   `.trim();
@@ -35,8 +35,9 @@ Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
       verilenler: { type: "string", description: "Verilen bilgiler" },
       cozum: { type: "string", description: "Adım adım çözüm" },
       sonuc: { type: "string", description: "Nihai sonuç" },
+      konuOzet: { type: "string", description: "Soruya ait konu özeti" },
     },
-    required: ["konu", "istenilen", "verilenler", "cozum", "sonuc"],
+    required: ["konu", "istenilen", "verilenler", "cozum", "sonuc", "konuOzet"],
   };
 
   try {
