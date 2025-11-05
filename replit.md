@@ -133,7 +133,7 @@ users {
 - Model: `gemini-2.0-flash-exp`
 - Structured JSON output with response schema validation
 - System prompt instructs AI to verify physics problems using Google Search tool
-- Output format: `{konu, istenilen, verilenler, cozum, sonuc}` (Turkish field names)
+- Output format: `{konu, istenilen, verilenler, cozum, sonuc,konuOzet}` (Turkish field names)
 - API key stored in `GEMINI_API_KEY` environment variable
 - Image support: Base64-encoded images sent with text prompts (max 8MB)
 - **Implementation**: `server/lib/gemini.ts` - handles API calls and response parsing
