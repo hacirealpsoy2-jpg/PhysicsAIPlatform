@@ -14,7 +14,7 @@ export default function Solve() {
   const [questionText, setQuestionText] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [solution, setSolution] = useState<SolutionResponse | null>(null);
+  const [solution, setSolution] = useState<SolutionResponse & { konuOzet?: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +128,9 @@ ${solution.cozum}
 
 SONUÇ:
 ${solution.sonuc}
+
+KONU ÖZETİ:
+${solution.konuOzet || "-"}
     `.trim();
 
     navigator.clipboard.writeText(text);
@@ -348,6 +351,15 @@ ${solution.sonuc}
                       <h3 className="text-lg font-semibold mb-2">Sonuç</h3>
                       <p className="text-base font-medium font-mono text-lg">{solution.sonuc}</p>
                     </div>
+
+                    {solution.konuOzet && (
+                      <div className="p-4 border-2 border-secondary rounded-lg bg-secondary/10">
+                        <h3 className="text-lg font-semibold mb-2">Konu Özeti</h3>
+                        <p className="text-base leading-relaxed text-gray-800" style={{ fontFamily: "Arial, sans-serif" }}>
+                          {solution.konuOzet}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
