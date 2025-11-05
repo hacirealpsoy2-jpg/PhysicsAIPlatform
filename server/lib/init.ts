@@ -4,7 +4,7 @@ import { storage } from "../storage";
 export async function initializeAdminUser() {
   try {
     const adminUsername = "admin";
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Ferhat4755__";
 
     const existingAdmin = await storage.getUserByUsername(adminUsername);
     
