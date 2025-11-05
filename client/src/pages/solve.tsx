@@ -271,9 +271,6 @@ ${solution.sonuc}
                   <div className="text-center space-y-4">
                     <Loader2 className="w-16 h-16 animate-spin mx-auto text-primary" />
                     <p className="text-lg font-medium">Soru çözülüyor...</p>
-                    <p className="text-sm text-muted-foreground">
-                      Gemini AI güvenilir kaynaklardan bilgi topluyor
-                    </p>
                   </div>
                 </CardContent>
               </Card>
