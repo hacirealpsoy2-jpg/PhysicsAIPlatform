@@ -1,0 +1,391 @@
+Harika — aşağıda **adım adım, eksiksiz** olarak ne yapacağını, hangi dosyaları nerede düzenleyeceğini, hangi komutları çalıştıracağını, nasıl test edeceğini ve sonrasında nasıl deploy edip herkese açık, mobil uyumlu bir web sitesi haline getireceğini anlattım. Her adım pratik komut, dosya yolu, örnek istek ve güvenlik uyarıları içerir — kopyala/yapıştır ile uygulayabilirsin.
+
+---
+
+# Özet (kısa)
+
+1. ZIP’i açıp dosya yapısını hazırla.
+2. Frontend dosyalarını `backend/public/` içerisine koy (index.html, admin.html).
+3. `server.js`'i frontend dosyalarını servis edecek şekilde güncelle (statik).
+4. `.env` dosyasını düzenle (`GEMINI_API_KEY`, `JWT_SECRET`, `ADMIN_PASSWORD`, `PORT`).
+5. Yerelde test et: `npm install` → `npm start`.
+6. GitHub repo oluştur, push et. `.env` commit etmeyeceksin.
+7. Render’a deploy et (Web Service). Render dashboard’a ortam değişkenlerini ekle.
+8. Domain/HTTPS, rate-limiting, monitoring, güvenlik adımlarını uygula.
+9. Kullanıcılar tarayıcıdan (mobil dahil) erişip kullanabilir.
+
+Ayrıntılar aşağıda.
+
+---
+
+## A. Proje dosya yapısı — ne nerede olmalı
+
+Seninle daha önce oluşturduğumuz yapıyı kullanacağız. Temel yapı:
+
+```
+fizik-cozum-rehberi/
+├─ backend/
+│  ├─ server.js           <- Express ana sunucu (statik serve + api routes)
+│  ├─ routes/             <- auth.js, solve.js, admin.js
+│  ├─ middleware/         <- authMiddleware, adminMiddleware
+│  ├─ lib/                <- db.js (lowdb wrapper)
+│  └─ public/             <- index.html, admin.html, css/js (frontend)
+├─ package.json
+├─ .gitignore
+└─ .env.example
+```
+
+**Önemli:** `backend/public/` içindeki `index.html` ve `admin.html` herkesin göreceği web arayüzü olacak — mobil uyumlu tasarımı bu dosyalarda yap.
+
+---
+
+## B. Hangi dosyaları düzenleyeceksin (adım adım)
+
+### 1) `.env` — gizli bilgiler (lokalde veya render’da)
+
+Kök / proje dizininde `.env` oluştur ve içine **sadece** şunları koy:
+
+```
+GEMINI_API_KEY=AIzaSyDhBnVQde4hHvDT-ira2AXCQA_Fiog4aTI    # kendi anahtarın (ASLA git'e push etme)
+JWT_SECRET=çok-güçlü-rastgele-bir-string
+ADMIN_PASSWORD=Ferhat4755__   # veya daha güvenli yeni bir parola koy
+PORT=5000
+```
+
+> `.gitignore` içinde `.env` zaten varsa GitHub'a push olmaz. Yine de dikkat!
+
+---
+
+### 2) `server.js` — statik frontend servis eden Express (güncelle)
+
+`backend/server.js` dosyanın şu şekilde olduğundan emin ol veya değiştir:
+
+```js
+require('dotenv').config();
+const express = require('express');
+const path = require('path');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const { getUsers, saveUsers } = require('./lib/db');
+
+const authRoutes = require('./routes/auth');
+const solveRoutes = require('./routes/solve');
+const adminRoutes = require('./routes/admin');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(bodyParser.json({ limit: '8mb' })); // base64 resimler için limit arttırılabilir
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// statik frontend dosyaları
+app.use(express.static(path.join(__dirname, 'public')));
+
+// api rotaları
+app.use('/api/auth', authRoutes);
+app.use('/api/solve', solveRoutes);
+app.use('/api/admin', adminRoutes);
+
+// SPA fallback (index.html) - optional, so paths work after refresh
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// admin user auto-create
+async function ensureAdmin() {
+  const adminPass = process.env.ADMIN_PASSWORD || 'Ferhat4755__';
+  const users = await getUsers();
+  if (!users.find(u => u.username === 'admin')) {
+    const hash = await bcrypt.hash(adminPass, 10);
+    users.push({ id: 'admin-id', username: 'admin', passwordHash: hash, role: 'admin', blocked: false, bannedUntil: null });
+    await saveUsers(users);
+    console.log('Admin kullanıcı oluşturuldu: username=admin');
+  } else {
+    console.log('Admin zaten mevcut.');
+  }
+}
+
+app.listen(PORT, async () => {
+  await ensureAdmin();
+  console.log(`Server çalışıyor: http://localhost:${PORT}`);
+});
+```
+
+> Bu kod backend/public içindeki HTML dosyasını otomatik sunar. Eğer sunucu ana dizinden çalışacaksa `Start` komutunda doğru `node backend/server.js` kullan.
+
+---
+
+### 3) `routes/solve.js` — RAG + Gemini isteği (sunucudan yapılacak)
+
+Dosya içeriğinin RAG araç desteğini (`tools: [{ "google_search": {} }]`) içerdiğinden emin ol. Örnek:
+
+```js
+const express = require('express');
+const router = express.Router();
+const fetch = require('node-fetch');
+const authMiddleware = require('../middleware/authMiddleware');
+
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { parts } = req.body || {};
+    if (!parts || !Array.isArray(parts)) return res.status(400).json({ error: 'parts array required' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+    const systemPrompt = `
+Sen TYT/AYT düzeyinde fizik öğretmenisin. Soruyu çözmeden önce Google Arama aracını kullanarak güvenilir kaynaklardan doğrula.
+Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"..."}.
+Tüm çıktı Türkçe olmalı.
+`.trim();
+
+    const schema = { /* schema as before */ };
+
+    const payload = {
+      contents: [{ role: "user", parts }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      tools: [{ "google_search": {} }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    };
+
+    const r = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await r.json();
+    return res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'server error' });
+  }
+});
+
+module.exports = router;
+```
+
+> Not: `tools` ile arama isteği model/hesap izinlerine bağlı çalışır. GCP projenin ve API key izinleri doğru olmalı.
+
+---
+
+### 4) `routes/auth.js` & `routes/admin.js` — username tabanlı auth
+
+Daha önce verdiğim `auth.js` ve `admin.js` dosyalarını kullan. Kayıt `username` ve `password` alıyor. `login` JWT döndürüyor. `admin.js` rotaları JWT içerisindeki `role === 'admin'` kontrolü ile çalışmalı.
+
+---
+
+### 5) Frontend: `backend/public/index.html` ve `admin.html`
+
+Eğer zip içinde halihazırda `public/index.html` ve `public/admin.html` yoksa, **önceki mesajımdaki** `public/index.html` ve `public/admin.html` içeriğini `backend/public/` içine koy. Bu dosyalar:
+
+* Mobil uyumlu (Tailwind ile)
+* Register/Login arayüzü
+* `solve` butonu Base64 resim ve text `parts` oluşturup `/api/solve` çağrısı yapar, `Authorization` header ile token gönderir.
+* Admin paneli ayrı sayfa `admin.html` — önce `/api/auth/login` ile admin token alır, sonra `/api/admin/listUsers` ve `/api/admin/updateUser` kullanır.
+
+**Önemli:** Eğer sunucuda statik serve sağlıyorsan `index.html` refresh ile doğrudan açılabiliyor.
+
+---
+
+## C. Yerel test adımları (komutlar)
+
+1. ZIP’i açtıktan sonra proje köküne gel:
+
+```bash
+cd fizik-cozum-rehberi
+```
+
+2. Bağımlılıkları kur:
+
+```bash
+npm install
+```
+
+> package.json içindeki `main`/scripts doğruysa `npm start` çalışır. Eğer `backend` klasöründe package.json varsa `cd backend` gerekebilir. (Benim önerim package.json proje kökünde ve start `node backend/server.js`).
+
+3. `.env` dosyanı ayarla (kökte):
+
+```bash
+cp .env.example .env
+# sonra .env içine gerçek GEMINI_API_KEY ve JWT_SECRET koy
+```
+
+4. Sunucuyu başlat:
+
+```bash
+npm start
+```
+
+5. Tarayıcıda aç:
+
+```
+http://localhost:5000/        -> index.html (frontend)
+http://localhost:5000/admin.html -> admin paneli
+```
+
+6. Test API çağrıları (curl örnekleri):
+
+* Kayıt:
+
+```bash
+curl -X POST https://localhost:5000/api/auth/register \
+ -H "Content-Type: application/json" \
+ -d '{"username":"ali","password":"1234"}'
+```
+
+* Giriş:
+
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+ -H "Content-Type: application/json" \
+ -d '{"username":"ali","password":"1234"}'
+# dönen JSON içinde token var -> { "token": "..." }
+```
+
+* Solve (token aldıktan sonra):
+
+```bash
+curl -X POST http://localhost:5000/api/solve \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"parts":[{"text":"Bir cisim 10 m/s hızla..."}]}'
+```
+
+---
+
+## D. GitHub’a push etme (adım adım)
+
+1. Yeni repo oluştur GitHub’da: `physics-ai-platform` (veya istediğin ad).
+2. Lokal repoda:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: fizik cozum rehberi"
+git branch -M main
+git remote add origin https://github.com/<KULLANICI_ADIN>/physics-ai-platform.git
+git push -u origin main
+```
+
+> `.env` dosyan `.gitignore` içinde olduğu için push olmayacak — bu normal ve istenen durum.
+
+---
+
+## E. Render’a deploy (adım adım)
+
+Render kullanma talimatı (üyelik/giriş gerektirir):
+
+1. render.com’a git ve GitHub ile bağla.
+2. New → Web Service → GitHub repo’nu seç.
+3. Ayarlar:
+
+   * **Root directory:** boş (repo kökü)
+   * **Build command:** `npm install`
+   * **Start command:** `npm start` (veya `node backend/server.js` eğer farklı)
+   * **Environment:** `Node 16` ya da uygun versiyon
+4. **Environment Variables** (Render dashboard → Environment → Add Secret):
+
+   * `GEMINI_API_KEY` = (gerçek anahtar)
+   * `JWT_SECRET` = (güçlü bir string)
+   * `ADMIN_PASSWORD` = (Ferhat4755__ veya daha güvenlisi)
+   * `PORT` = `5000` (Render otomatik olarak verdiği PORT’u override etmek gerekebilir — Render genelde `PORT` sağlar; server.js `process.env.PORT` kullanıyor)
+5. Deploy’a tıkla. Loglarda `Server çalışıyor` benzeri çıktıyı göreceksin.
+
+Render sana bir URL verecek: `https://<appname>.onrender.com`
+
+Test et: `https://<appname>.onrender.com` — web arayüzü yüklenmeli.
+
+---
+
+## F. Domain ve HTTPS
+
+Render otomatik olarak Let's Encrypt ile HTTPS sağlar. Kendi özel domain’in varsa Render → Settings → Custom Domains bölümünden ekleyebilirsin; DNS A/CNAME ayarlarını yap.
+
+---
+
+## G. Güvenlik & Ücret/Kota yönetimi — mutlaka yap
+
+1. **API anahtarını asla açığa çıkarma** — `.env` veya Render Secrets kullan.
+2. **JWT_SECRET** güçlü olmalı.
+3. **Admin parola** varsayılan `Ferhat4755__` ise üretime almadan önce değiştir. (Render Secrets ile güncelle).
+4. **Rate limiting**: Model çağrıları maliyetli. Bir request throttling eklentisi (express-rate-limit) ile kullanıcı başına dakikalık/saatlik limit koy.
+5. **Upload boyutu limiti**: `bodyParser.json({ limit: '8mb' })` ayarıyla resim boyutunu kısıtla; büyük dosyaları reddet.
+6. **DoS, abuse kontrolü**: IP bazlı limit, captcha (kayıt akışına), daily quota/credits takibi.
+7. **GCP faturalama uyarısı**: RAG (tools) ve Gemini çağrıları maliyetli olabilir; GCP faturalarını takip et.
+8. **Log/monitor**: Render logları, Sentry vb. monitoring ekle.
+
+---
+
+## H. Performans & Mobil Uyumluluk
+
+* Frontend (index.html) Tailwind ile responsive tasarlandı. Tarayıcıdan mobil cihazlarda da iyi görünür.
+* Büyük resimleri client-side’da sıkıştır (JS kütüphaneleri ile) veya kullanıcıya maksimum boyut uyarısı koy.
+* UX: çözümler çıktıktan sonra “paylaş” veya “kopyala” butonu ekle.
+
+---
+
+## I. Bakım / Güncelleme / Yedekleme
+
+* `backend/data/db.json` (lowdb) küçük projeler için OK. Render veya sunucuda dosya bazlı veritabanı kalıcı değilse **Supabase, PostgreSQL, MongoDB Atlas** gibi gerçek DB’ye taşın.
+* DB yedeğini düzenli al: `cron` ile `data/db.json` kopyası oluştur.
+* Versiyon kontrol: Her değişikliği GitHub’a commit et.
+
+---
+
+## J. Test & Canlıya Geçiş Kontrol Listesi (Checklist)
+
+* [ ] `.env` oluşturuldu, gerçek `GEMINI_API_KEY` eklendi.
+* [ ] `JWT_SECRET` uzun ve rastgele.
+* [ ] `ADMIN_PASSWORD` güvenli (ve Render secrets'e eklendi).
+* [ ] Local test başarı (register/login/solve) yapıldı.
+* [ ] GitHub'a push yapıldı.
+* [ ] Render’da deploy başarılı, URL çalışıyor.
+* [ ] Rate limiting & body limit uygulanmış.
+* [ ] Admin paneli üzerinden kullanıcı test edildi (sil/block/unblock).
+* [ ] RAG çalışıyor mu kontrol edildi (model cevaplarında arama meta varsa kontrol et).
+* [ ] Faturalama / quota alarmı GCP üzerinde ayarlandı.
+
+---
+
+## Kısa Örnek İş Akışları (kullanıcı perspektifi)
+
+1. Kullanıcı siteye girer (telefon): `https://<app>.onrender.com`
+2. Kayıt olur: `username + password`.
+3. Giriş yapar → token alır.
+4. Soru yazar veya fotoğraf yükler → “Çözümü Göster” butonuna basar.
+5. Sunucu `/api/solve` çağrısı yapar (sunucuda GEMINI_API_KEY ile). RAG (google_search) etkin ise model arama yapar.
+6. Model JSON formatında cevap üretir → frontend parse edip gösterir.
+
+---
+
+## Problemler & Çözüm (Hızlı Troubleshooting)
+
+* **Server 500 hatası / Missing GEMINI_API_KEY**
+  → `.env` içinde key yok ya da Render secrets eklenmemiş. Render dashboard’a ekle.
+
+* **Model JSON üretmiyor / farklı format**
+  → `data.candidates[0].content.parts[0].text` alanını logla, modelin döndürdüğü ham cevabı incele. Schema’nın çok katıysa model farklı finish reason dönebilir (SAFETY, RECITATION vs).
+
+* **RAG çalışmıyor (model arama yapmıyor)**
+  → GCP projenin Generative Language ve ilgili Search/Vertex izinleri, faturalama aktif mi kontrol et.
+
+* **Kullanıcı block/ban işe yaramıyor**
+  → login routeban süresini ve `bannedUntil` kontrolünü doğrula; zaman damgalarını doğru biçimde karşılaştır.
+
+---
+
+## Sonraki Adımlar — istersen hemen yapayım
+
+1. Senin için `backend/public/` içine **tam hazır frontend** (benim verdiğim index.html + admin.html) ekleyip zip’ini oluşturayım — sen sadece `.env` koyup çalıştır. (Ben bunu daha önce yapmıştım ama ZIP’te biraz farklı server.js vardı; şimdi tek tip tam uyumlu ZIP ister misin?)
+2. Render deploy sırasında karşılaştığın hataları adım adım çözebilirim (deploy loglarına bakarak).
+3. İstersen `express-rate-limit` ve `helmet` gibi güvenlik orta katmanı kodlarını da ekleyip yeni ZIP veririm.
+
+Hemen devam etmemi ister misin ve hangi adımı şimdi yapıyorsun (yerelde test mi, GitHub push mu, Render deploy mu)? Ben senin seçeneğine göre devam edeyim ve gerekirse otomatik oluşturulmuş frontend dosyalarını ZIP olarak verip deploy-ready hale getireyim.

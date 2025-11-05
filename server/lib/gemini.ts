@@ -1,0 +1,62 @@
+// Integration with Gemini AI - using javascript_gemini blueprint
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+
+export interface PhysicsSolution {
+  konu: string;
+  istenilen: string;
+  verilenler: string;
+  cozum: string;
+  sonuc: string;
+}
+
+export async function solvePhysicsProblem(parts: any[]): Promise<PhysicsSolution> {
+  const systemPrompt = `
+Sen TYT/AYT düzeyinde fizik öğretmenisin. Soruyu çözmeden önce Google Arama aracını kullanarak güvenilir kaynaklardan doğrula.
+Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"..."}.
+
+- konu: Sorunun ana konusu (örn: "Kinematik - Hız ve İvme")
+- istenilen: Soruda ne isteniyor (kısa açıklama)
+- verilenler: Soruda verilen bilgiler (liste halinde)
+- cozum: Adım adım çözüm (formüller ve açıklamalarla)
+- sonuc: Nihai sonuç (sayısal değer ve birim)
+
+Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
+  `.trim();
+
+  const schema = {
+    type: "object",
+    properties: {
+      konu: { type: "string", description: "Fizik konusu" },
+      istenilen: { type: "string", description: "Soruda istenilen" },
+      verilenler: { type: "string", description: "Verilen bilgiler" },
+      cozum: { type: "string", description: "Adım adım çözüm" },
+      sonuc: { type: "string", description: "Nihai sonuç" },
+    },
+    required: ["konu", "istenilen", "verilenler", "cozum", "sonuc"],
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [{ role: "user", parts }],
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      },
+    });
+
+    const rawJson = response.text;
+    if (!rawJson) {
+      throw new Error("Gemini AI'dan boş yanıt alındı");
+    }
+
+    const solution: PhysicsSolution = JSON.parse(rawJson);
+    return solution;
+  } catch (error: any) {
+    console.error("Gemini AI error:", error);
+    throw new Error(`Fizik sorusu çözülürken hata: ${error.message}`);
+  }
+}
