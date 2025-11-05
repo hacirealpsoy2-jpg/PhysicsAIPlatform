@@ -52,14 +52,4 @@ Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
     });
 
     const rawJson = response.text;
-    if (!rawJson) {
-      throw new Error("Gemini AI'dan boş yanıt alındı");
-    }
-
-    const solution: PhysicsSolution = JSON.parse(rawJson);
-    return solution;
-  } catch (error: any) {
-    console.error("Gemini AI error:", error);
-    throw new Error(`Fizik sorusu çözülürken hata: ${error.message}`);
-  }
-}
+    if (!rawJson) 
