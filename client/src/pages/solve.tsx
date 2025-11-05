@@ -130,7 +130,7 @@ SONUÇ:
 ${solution.sonuc}
 
 KONU ÖZETİ:
-${solution.konuOzet || "-"}
+${solution.konuOzet}
     `.trim();
 
     navigator.clipboard.writeText(text);
