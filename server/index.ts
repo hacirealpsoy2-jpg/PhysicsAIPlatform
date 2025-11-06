@@ -1,12 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import http from "http";
 
 const app = express();
 
 declare module 'http' {
   interface IncomingMessage {
-    rawBody: unknown
+    rawBody: unknown;
   }
 }
 
@@ -58,31 +59,35 @@ app.use((req, res, next) => {
   const { initializeAdminUser } = await import("./lib/init");
   await initializeAdminUser();
 
-  const server = await registerRoutes(app);
+  const appServer = await registerRoutes(app);
 
   // Hata yakalama middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
+    console.error("❌ Server error:", err);
   });
 
   // Vite setup (sadece development)
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    await setupVite(app, appServer);
   } else {
     serveStatic(app);
   }
 
-  // Sunucu port ayarı
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`🚀 Fizik Çözüm Platformu çalışıyor: http://0.0.0.0:${port}`);
+  // ✅ Render uyumlu HTTP sunucusu
+  const server = http.createServer(app);
+
+  // 🔧 Timeout sorunlarını engellemek için
+  server.keepAliveTimeout = 120000; // 2 dakika
+  server.headersTimeout = 120000;   // 2 dakika
+
+  // 🔥 Render portu (Render bunu otomatik atar)
+  const port = parseInt(process.env.PORT || "10000", 10);
+  const host = "0.0.0.0";
+
+  server.listen(port, host, () => {
+    log(`🚀 Fizik Çözüm Platformu çalışıyor: http://${host}:${port}`);
   });
 })();
