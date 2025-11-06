@@ -15,14 +15,14 @@ export interface PhysicsSolution {
 export async function solvePhysicsProblem(parts: any[]): Promise<PhysicsSolution> {
   const systemPrompt = `
 Sen TYT/AYT düzeyinde fizik öğretmenisin. Soruyu çözmeden önce Google Arama aracını kullanarak güvenilir kaynaklardan doğrula.
-Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum", "sonuc":"...", "konuOzet"}.
+Cevabı JSON olarak ver: {"konu":"...", "istenilen":"...", "verilenler":"...", "cozum":"...", "sonuc":"...", "konuOzet":"..."}.
 
 - konu: Sorunun ana konusu (örn: "Kinematik - Hız ve İvme")
 - istenilen: Soruda ne isteniyor (kısa açıklama)
 - verilenler: Soruda verilen bilgiler (liste halinde)
-- cozum: Adım adım çözüm ve  olabildiğince %100 derecesinde doğru yapılarak (formüller ve açıklamalarla)
+- cozum: Adım adım çözüm (formüllerle)
 - sonuc: Nihai sonuç (sayısal değer ve birim)
-- konuOzet:Sorunun ana konusuna ait konu özeti(öğrencinin anlayacağı düzeyde)
+- konuOzet: Sorunun konusuna ait konu özeti (öğrencinin anlayacağı şekilde)
 
 Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
   `.trim();
@@ -52,4 +52,12 @@ Tüm çıktı Türkçe olmalı. Matematiksel ifadeleri açıkça yaz.
     });
 
     const rawJson = response.text;
-    if (!rawJson) 
+    if (!rawJson) throw new Error("Gemini'den yanıt alınamadı.");
+
+    const parsed = JSON.parse(rawJson);
+    return parsed as PhysicsSolution;
+  } catch (err) {
+    console.error("❌ Gemini API hatası:", err);
+    throw new Error("Fizik sorusu çözülemedi. Lütfen tekrar deneyin.");
+  }
+}
