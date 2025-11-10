@@ -46,7 +46,7 @@ fizik-cozum-rehberi/
 Kök / proje dizininde `.env` oluştur ve içine **sadece** şunları koy:
 
 ```
-GEMINI_API_KEY=AlzaSyAuf3WkoU6sed3bcwNm8zrGiDcLdBlwcls    # kendi anahtarın (ASLA git'e push etme)
+GEMINI_API_KEY=AIzaSyAs3r0MWHSMrZbZmnJyaAbkPpBoIwXsvZU    # kendi anahtarın (ASLA git'e push etme)
 JWT_SECRET=çok-güçlü-rastgele-bir-string
 ADMIN_PASSWORD=Ferhat4755__   # veya daha güvenli yeni bir parola koy
 PORT=5000
