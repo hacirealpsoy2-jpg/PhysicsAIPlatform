@@ -40,7 +40,7 @@ fizik-cozum-rehberi/
 Kök / proje dizininde `.env` oluştur ve içine **sadece** şunları koy:
 
 ```
-GEMINI_API_KEY=AlzaSyAuf3WkoU6sed3bcwNm8zrGiDcLdBlwcls    # kendi anahtarın (ASLA git'e push etme)
+GEMINI_API_KEY=AIzaSyAs3r0MWHSMrZbZmnJyaAbkPpBoIwXsvZU    # kendi anahtarın (ASLA git'e push etme)
 JWT_SECRET=çok-güçlü-rastgele-bir-string
 ADMIN_PASSWORD=Ferhat4755__   # veya daha güvenli yeni bir parola koy
 PORT=5000
@@ -374,5 +374,5 @@ Render otomatik olarak Let's Encrypt ile HTTPS sağlar. Kendi özel domain’in 
 * **Kullanıcı block/ban işe yaramıyor**
   → login routeban süresini ve `bannedUntil` kontrolünü doğrula; zaman damgalarını doğru biçimde karşılaştır.
 
----  bu arada gemini apı keyim:API KEY:AlzaSyAuf3WkoU6sed3bcwNm8zrGiDcLdBlwcls
+---  bu arada gemini apı keyim:API KEY:AIzaSyAs3r0MWHSMrZbZmnJyaAbkPpBoIwXsvZU
  
