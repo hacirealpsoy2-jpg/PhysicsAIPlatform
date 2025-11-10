@@ -374,5 +374,5 @@ Render otomatik olarak Let's Encrypt ile HTTPS sağlar. Kendi özel domain’in 
 * **Kullanıcı block/ban işe yaramıyor**
   → login routeban süresini ve `bannedUntil` kontrolünü doğrula; zaman damgalarını doğru biçimde karşılaştır.
 
----  bu arada gemini apı keyim:API KEY:AIzaSyDhBnVQde4hHvDT-ira2AXCQA_Fiog4aTI
+---  bu arada gemini apı keyim:API KEY:AlzaSyAuf3WkoU6sed3bcwNm8zrGiDcLdBlwcls
  
